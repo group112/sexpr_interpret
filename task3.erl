@@ -44,7 +44,7 @@ recvJob(Js, Cs, St)  -> receive
 interpret_cpu(Bin,   NCs)  when is_binary(Bin) -> interpret_cpu(ast:ast(Bin), NCs);
 interpret_cpu(error, _  )                      -> error;
 interpret_cpu(Ast,   NCs)                      -> Js       = schedule:jobs(Ast),
-                                                  {Tt, Sl} = schedule:alg(Js, NCs),
+                                                  {Tt, Sl} = schedule:alg2(Js, NCs),
                                                   schedule:printSchedule(Sl),
                                                   Cs       = createCPUs(Sl),
                                                   St       = os:timestamp(),

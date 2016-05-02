@@ -31,3 +31,10 @@
 
 -define(getChn(Js, J),     (proplists:get_value(J, Js))#job.chn).
 
+
+-record(bin, {load, elms}).
+
+-define(getBin(Bs, N),    proplists:get_value(N, Bs)).
+
+-define(setBin(Bs, N, B), lists:keyreplace(N, 1, Bs, {N, B})).
+

@@ -1,5 +1,5 @@
 -module(schedule).
--export([delay/1, jobs/1, alg/2, printJobs/1, printSchedule/1]).
+-export([delay/1, jobs/1, alg1/2, alg2/2, printJobs/1, printSchedule/1]).
 -include("schedule.hrl").
 
 
@@ -113,16 +113,52 @@ performJs(Js, Sl, Ct, {JN, CN}) -> Et = delay(?getOp(Js, JN)) + Ct,
                                    {?setTime(Js, JN, Et), workCPU(Sl, JN, CN, Ct, Et)}.
 
 
-alg(Js, NCs) when is_integer(NCs) -> alg(weight(Js), initSchedule(NCs));
-alg(Js, Sl )                      -> {JNs, WCNs, ICNs} = selectJs(Js, Sl),
+alg1(Js, NCs) when is_integer(NCs) -> alg1(weight(Js), initSchedule(NCs));
+alg1(Js, Sl )                      -> {JNs, WCNs, ICNs} = selectJs(Js, Sl),
                                      case {JNs, ?getTime(Js, 1)} of
-                                         {[], undefined} -> alg(Js, idleCPUs(Sl));
+                                         {[], undefined} -> alg1(Js, idleCPUs(Sl));
                                          {[], _        } -> {totalTime(Sl), squeezeSchedule(Sl)};
                                          _               -> {Js2, Sl2} = performJs(Js, Sl, currentTime(Sl), lists:zip(JNs, WCNs)),
                                                             {Js3, Sl3} = if
                                                                              length(ICNs) > 0 -> {weight(Js2), idleCPUs(Sl2)};
                                                                              true             -> {weight(Js2), Sl2}
                                                                          end,
-                                                            alg(Js3, Sl3)
+                                                            alg1(Js3, Sl3)
+                                     end.
+
+
+loadCPUs(Sl)      -> Cs = [{C, E} || {C, S} <- Sl, {_, _, E} <- [hd(S)]],
+                     [proplists:get_value(C, Cs) || C <- lists:seq(1, length(Sl))].
+
+getWht(Js, JNs)   -> [{J, ?getWht(Js, J)} || J <- JNs].
+
+selectJs2(Js, Sl) -> Pr           = fun(N)      -> ?getTime(Js, N) =< currentTime(Sl)
+                                    end,
+                     Pa           = fun({_, J}) -> case J#job.time of
+                                                       undefined -> not lists:member(false, [Pr(N) || N <- J#job.chn]);
+                                                       _         -> false
+                                                   end
+                                    end,
+                     Cmp          = fun({_, J1}, {_, J2}) -> cmpJs(Js, J1, J2)
+                                    end,
+                     JNs          = [N || {N, _} <- lists:sort(Cmp, [J || J <- Js, Pa(J)])], 
+                     Os           = packing:optimum(loadCPUs(Sl), getWht(Js, JNs)),
+                     ACNs         = availableCPUs(Sl),
+                     {WCNs, JNs2} = lists:unzip([{C, J} || {C, J} <- Os, J /= undefined, lists:member(C, ACNs)]),
+                     ICNs         = [C || C <- ACNs, not lists:member(C, WCNs)],
+                     {JNs2, WCNs, ICNs}.
+
+
+alg2(Js, NCs) when is_integer(NCs) -> alg2(weight(Js), initSchedule(NCs));
+alg2(Js, Sl )                      -> {JNs, WCNs, ICNs} = selectJs2(Js, Sl),
+                                     case {JNs, ?getTime(Js, 1)} of
+                                         {[], undefined} -> alg2(Js, idleCPUs(Sl));
+                                         {[], _        } -> {totalTime(Sl), squeezeSchedule(Sl)};
+                                         _               -> {Js2, Sl2} = performJs(Js, Sl, currentTime(Sl), lists:zip(JNs, WCNs)),
+                                                            {Js3, Sl3} = if
+                                                                             length(ICNs) > 0 -> {weight(Js2), idleCPUs(Sl2)};
+                                                                             true             -> {weight(Js2), Sl2}
+                                                                         end,
+                                                            alg2(Js3, Sl3)
                                      end.
 
