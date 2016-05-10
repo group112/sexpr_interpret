@@ -55,9 +55,9 @@ clnt(S, Ast, N, Pid)                    -> Pid ! {N, clnt(S, Ast)}.
 
 collect(NXs, Xs) -> if
                         NXs == length(Xs) -> Xs;
-                        true            -> receive 
-                                               X -> collect(NXs, [X] ++ Xs)
-                                           end 
+                        true              -> receive 
+                                                 X -> collect(NXs, [X] ++ Xs)
+                                             end 
                     end.
 
 interpret_network_(Bin) when is_binary(Bin) -> interpret_network_(ast:ast(Bin));
