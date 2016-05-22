@@ -5,7 +5,7 @@ import Control.Monad
 import Data.Time.Clock
 
 import Ast
-import Schedule
+import Job
 
 interpret_network :: String -> IO (Maybe (Int, Double))
 interpret_network s = case ast s of

@@ -1,7 +1,7 @@
 module Task2(interpret_network, test) where
 
 import Ast
-import Schedule
+import Job
 
 interpret_network :: String -> Maybe (Int, Int)
 interpret_network cs = fmap interpret_network' $ ast cs

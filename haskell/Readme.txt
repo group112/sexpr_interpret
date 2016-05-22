@@ -1,5 +1,5 @@
-> :l Ast Schedule Task1 Task2 Task2_
-Ok, modules loaded: Ast, Schedule, Task1, Task2, Task2_.
+> :l Ast Job Packing Schedule Task1 Task2 Task2_ Task3
+Ok, modules loaded: Ast, Job, Packing, Schedule, Task1, Task2, Task2_, Task3.
 
 > Task1.test
 [Just 21,Just 10,Just (-10),Just 25,Just 1,Just 8,Just 50,Just 8,Just 66]
