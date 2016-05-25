@@ -69,7 +69,7 @@ minimize' bs c1 c2                  = case swap bs c1 c2 of
                                           _           -> minimize' bs c1 (c2 + 1)
 
 
-packing :: [(Int, Int)] -> [(Int, Int)] -> [((Int, Int), Int)] -- [(j, t)] -> [(c, l)] -> [((j, t), c)]
+packing :: [(Int, Int)] -> [(Int, Int)] -> [((Int, Int), Int)] 
 packing js cs = bs3
                 where
                     bs1 = minimize $ fillBins (initBins cs) js 

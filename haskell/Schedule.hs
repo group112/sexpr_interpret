@@ -1,4 +1,4 @@
-module Schedule(printSchedule, alg) where
+module Schedule(Schedule, ShortSchedule, printSchedule, alg) where
 
 import qualified Data.Map as M
 import Data.List
@@ -12,6 +12,11 @@ import Packing
 data Unit = Jb Int Int
           | Il Int 
 
+type Schedule = M.Map Int [Unit]
+
+type ShortSchedule = M.Map Int [Int]
+
+
 isJob :: Unit -> Bool
 isJob (Jb _ _) = True
 isJob _        = False
@@ -21,47 +26,47 @@ unitTime (Jb _ t) = t
 unitTime (Il t)   = t 
 
 
-initSchedule :: Int -> M.Map Int [Unit]
+initSchedule :: Int -> Schedule
 initSchedule n = foldl (\a k -> M.insert k [Il 0] a) M.empty [1..n]
 
-currentTime :: M.Map Int [Unit] -> Int
+currentTime :: Schedule -> Int
 currentTime sl = minimum $ M.foldl (\a v -> [unitTime $ head v] ++ a) [] sl
 
-nextTime :: M.Map Int [Unit] -> Int
+nextTime :: Schedule -> Int
 nextTime sl = minimum $ filter (\v -> v /= currentTime sl) $ M.foldl (\a v -> [unitTime $ head v] ++ a) [] sl
 
-squeezeSchedule :: M.Map Int [Unit] -> M.Map Int [Int]
+squeezeSchedule :: Schedule -> ShortSchedule
 squeezeSchedule sl = M.map f sl
                      where
                          f us = reverse $ map (\(Jb n _) -> n) $ filter isJob us
 
-availableCPUs :: M.Map Int [Unit] -> [Int]
+availableCPUs :: Schedule -> [Int]
 availableCPUs sl = M.foldlWithKey f [] sl
                    where
                        f a k v = if (unitTime $ head v) == currentTime sl then [k] ++ a else a
 
-idleCPUs :: M.Map Int [Unit] -> M.Map Int [Unit]
+idleCPUs :: Schedule -> Schedule
 idleCPUs sl = idleCPUs' sl (nextTime sl) (availableCPUs sl)                           
 
-idleCPUs' :: M.Map Int [Unit] -> Int -> [Int] -> M.Map Int [Unit]
+idleCPUs' :: Schedule -> Int -> [Int] -> Schedule
 idleCPUs' sl1 nt []     = sl1
 idleCPUs' sl1 nt (c:cs) = idleCPUs' sl2 nt cs
                           where
                               sl2 = M.insert c ([Il nt] ++ v) sl1
                               v   = (\(Just x) -> x) (M.lookup c sl1)
 
-loadCPUs :: M.Map Int [Unit] -> [(Int, Int)]
+loadCPUs :: Schedule -> [(Int, Int)]
 loadCPUs sl = M.foldlWithKey f [] sl
               where
                   f a k v = [(k, unitTime $ head v)] ++ a
 
-updateSchedule :: M.Map Int [Unit] -> Int -> Int -> Int -> (M.Map Int [Unit], Int)
+updateSchedule :: Schedule -> Int -> Int -> Int -> (Schedule, Int)
 updateSchedule sl c j t1 = (M.insert c ([Jb j t2] ++ v) sl, t2)
                            where
                                t2 = t1 + (unitTime $ head v)
                                v  = (\(Just x) -> x) (M.lookup c sl)
 
-printSchedule :: M.Map Int [Int] -> IO ()
+printSchedule :: ShortSchedule -> IO ()
 printSchedule sl = do
                    printf "---------------------------------------------------------------------------------\n"
                    printf "CPU |        Schedule                                                            \n"
@@ -75,7 +80,7 @@ printSchedule' ((c, js):sl) = do
                               printSchedule' sl
 
 
-select1 :: M.Map Int Job -> M.Map Int [Unit] -> ([((Int, Int), Int)], [Int])
+select1 :: Jobs -> Schedule -> ([((Int, Int), Int)], [Int])
 select1 js sl = (zip (take l ajs) wcs, ics)
                 where
                     ajs        = availableJobs js $ currentTime sl
@@ -84,7 +89,7 @@ select1 js sl = (zip (take l ajs) wcs, ics)
                     (wcs, ics) = splitAt l acs
                    
 
-select2 :: M.Map Int Job -> M.Map Int [Unit] -> ([((Int, Int), Int)], [Int])
+select2 :: Jobs -> Schedule -> ([((Int, Int), Int)], [Int])
 select2 js sl = (jcs, ics)
                 where
                     ajs      = availableJobs js $ currentTime sl
@@ -94,7 +99,7 @@ select2 js sl = (jcs, ics)
                     ics      = acs \\ wcs
 
 
-performJobs :: M.Map Int Job -> M.Map Int [Unit] -> [((Int, Int), Int)] -> [Int] ->  (M.Map Int Job, M.Map Int [Unit])
+performJobs :: Jobs -> Schedule -> [((Int, Int), Int)] -> [Int] ->  (Jobs, Schedule)
 performJobs js1 sl1 wcs ics = (js2, sl3)
                               where
                                   (js2, sl2) = foldl f (js1, sl1) wcs
@@ -105,12 +110,12 @@ performJobs js1 sl1 wcs ics = (js2, sl3)
                                                                (sl', t') = updateSchedule sl c j t
                                                                js'       = setTime js j t'  
 
-alg :: Ast -> Int -> (M.Map Int Job, M.Map Int [Int])
+alg :: Ast -> Int -> (Jobs, ShortSchedule)
 alg a n = (js, squeezeSchedule sl)
           where
               (js, sl) = alg' (weight $ makeJobs a) (initSchedule n)
 
-alg' :: M.Map Int Job -> M.Map Int [Unit] -> (M.Map Int Job, M.Map Int [Unit])
+alg' :: Jobs -> Schedule -> (Jobs, Schedule)
 alg' js sl = case jobTime $ job js 1 of
                    Just _ -> (js, sl)
                    _      -> case wcs of
