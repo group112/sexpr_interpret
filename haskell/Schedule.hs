@@ -1,6 +1,6 @@
 module Schedule(printSchedule, alg) where
 
-import qualified Data.Map.Strict as M
+import qualified Data.Map as M
 import Data.List
 import Text.Printf
 

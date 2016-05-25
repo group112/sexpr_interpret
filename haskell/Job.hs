@@ -1,8 +1,9 @@
-module Job(delay, Job(..), makeJobs, job, setTime, getTime, weight, availableJobs, printJobs) where
+module Job(delay, Job(..), Jobs, job, setTime, getTime, setRes, makeJobs, weight, availableJobs, canExec, printJobs) where
 
-import qualified Data.Map.Strict as M
+import qualified Data.Map as M
 import Data.Function
 import Data.List
+import Data.Maybe
 import Text.Printf
 
 import Ast
@@ -24,8 +25,26 @@ data Job = Job { jobNum  :: Int
                }
                deriving (Eq, Show)
 
+type Jobs = M.Map Int Job
 
-makeJobs :: Ast -> M.Map Int Job
+
+job :: Jobs -> Int -> Job
+job js n = fromJust $ M.lookup n js
+
+getWht :: Jobs -> Int -> Int
+getWht js n = (\(Just x) -> x) $ jobWht $ job js n
+
+setTime :: Jobs -> Int -> Int -> Jobs
+setTime js n t =  M.insert n (job js n){jobTime = Just t} js
+
+getTime :: Jobs -> Int -> Int
+getTime js n = (\(Just x) -> x) $ jobTime $ job js n
+
+setRes :: Jobs -> Int -> Int -> Jobs
+setRes js n r = M.insert n (job js n){jobRes = Just r} js
+
+
+makeJobs :: Ast -> Jobs
 makeJobs a = M.fromList $ map (\j -> (jobNum j, j)) $ jobs a
 
 jobs :: Ast -> [Job]
@@ -49,22 +68,10 @@ jobs'' (a:as) cn js1 p n1 = jobs'' as ([c] ++ cn) js2 p n2
                                 (js2, c, n2) = jobs' a js1 n1 p
 
 
-job :: M.Map Int Job -> Int -> Job
-job js n = (\(Just x) -> x) $ M.lookup n js
-
-getWht :: M.Map Int Job -> Int -> Int
-getWht js n = (\(Just x) -> x) $ jobWht $ job js n
-
-setTime :: M.Map Int Job -> Int -> Int -> M.Map Int Job
-setTime js n t =  M.insert n (job js n){jobTime = Just t} js
-
-getTime :: M.Map Int Job -> Int -> Int
-getTime js n = (\(Just x) -> x) $ jobTime $ job js n
-
-weight :: M.Map Int Job -> M.Map Int Job
+weight :: Jobs -> Jobs
 weight js = weight' js 1
 
-weight' :: M.Map Int Job -> Int -> M.Map Int Job
+weight' :: Jobs -> Int -> Jobs
 weight' js1 n = case jobTime j of
                     Nothing -> M.insert n j{jobWht = Just w2} js2
                     _       -> M.insert n j{jobWht = Just 0 } js1
@@ -78,10 +85,10 @@ weight' js1 n = case jobTime j of
                                   (Just w,  _) -> w
 
 
-availableJobs :: M.Map Int Job -> Int -> [(Int, Int)]
+availableJobs :: Jobs -> Int -> [(Int, Int)]
 availableJobs js ct = map (\j -> (j, delay $ jobOp $ job js j)) (availableJobs' js ct 1)
 
-availableJobs' :: M.Map Int Job -> Int -> Int -> [Int]
+availableJobs' :: Jobs -> Int -> Int -> [Int]
 availableJobs' js ct n = case jobTime j of
                              Nothing -> case r of
                                             True -> [jobNum j]
@@ -97,7 +104,18 @@ availableJobs' js ct n = case jobTime j of
                              chn = reverse $ sortBy (compare `on` getWht js) (jobChn j)
 
 
-printJobs :: M.Map Int Job -> IO ()
+canExec :: Jobs -> Int -> (Bool, Token, [Int])
+canExec js n = (a, jobOp j, rs)
+               where
+                   j   = job js n
+                   rs' = map (\c -> jobRes $ job js c) (jobChn j)
+                   a   = not $ elem Nothing rs'
+                   rs  = case a of
+                             True -> map fromJust rs'
+                             _    -> []
+
+
+printJobs :: Jobs -> IO ()
 printJobs js1 = do
                 printf "---------------------------------------------------------------------------------\n"
                 printf "Job |  Op   |  Weight   |   Time    |  Result   |  Parent   |     Children       \n"
